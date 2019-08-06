@@ -28,6 +28,10 @@ func RoleAuthAdd(ra *RoleAuth) (int64, error) {
 	return orm.NewOrm().Insert(ra)
 }
 
+func RoleAuthBatchAdd(ras *[]RoleAuth) (int64, error) {
+	return orm.NewOrm().InsertMulti(100, ras)
+}
+
 func RoleAuthGetById(id int) ([]*RoleAuth, error) {
 	list := make([]*RoleAuth, 0)
 	query := orm.NewOrm().QueryTable(TableName("uc_role_auth"))
@@ -39,8 +43,9 @@ func RoleAuthGetById(id int) ([]*RoleAuth, error) {
 }
 
 func RoleAuthDelete(id int) (int64, error) {
-	query := orm.NewOrm().QueryTable(TableName("uc_role_auth"))
-	return query.Filter("role_id", id).Delete()
+	_, err := orm.NewOrm().Raw("DELETE FROM `pp_uc_role_auth` WHERE `role_id` = ?",
+		strconv.Itoa(id)).Exec()
+	return 0, err
 }
 
 //获取多个

@@ -77,7 +77,7 @@ func (self *BaseController) Auth() {
 			}
 
 			isHasAuth := strings.Contains(self.allowUrl, self.controllerName+"/"+self.actionName)
-			noAuth := "ajaxsave/table/loginin/loginout/getnodes/start"
+			noAuth := "ajaxsave/table/loginin/loginout/getnodes/start／apitask/apistart/apipause"
 			isNoAuth := strings.Contains(noAuth, self.actionName)
 
 			if isHasAuth == false && isNoAuth == false {
@@ -94,7 +94,15 @@ func (self *BaseController) Auth() {
 		}
 	}
 
-	if self.userId == 0 && (self.controllerName != "login" && self.actionName != "loginin") {
+	if self.userId == 0 &&
+		(self.controllerName != "login" &&
+			self.actionName != "loginin" &&
+			self.actionName != "apistart" &&
+			self.actionName != "apitask" &&
+			self.actionName != "apipause" &&
+			self.actionName != "apisave" &&
+			self.actionName != "apistatus" &&
+			self.actionName != "apiget") {
 		self.redirect(beego.URLFor("LoginController.Login"))
 	}
 }
@@ -285,6 +293,42 @@ func serverListByGroupId(groupId int) []string {
 	return servers
 }
 
+type AdminInfo struct {
+	Id       int
+	Email    string
+	Phone    string
+	RealName string
+}
+
+func AllAdminInfo(adminIds string) []*AdminInfo {
+	Filters := make([]interface{}, 0)
+	Filters = append(Filters, "status", 1)
+	//Filters = append(Filters, "id__gt", 1)
+	var notifyUserIds []int
+	if adminIds != "0" && adminIds != "" {
+		notifyUserIdsStr := strings.Split(adminIds, ",")
+		for _, v := range notifyUserIdsStr {
+			i, _ := strconv.Atoi(v)
+			notifyUserIds = append(notifyUserIds, i)
+		}
+		Filters = append(Filters, "id__in", notifyUserIds)
+	}
+	Result, _ := models.AdminGetList(1, 1000, Filters...)
+
+	adminInfos := make([]*AdminInfo, 0)
+	for _, v := range Result {
+		ai := AdminInfo{
+			Id:       v.Id,
+			Email:    v.Email,
+			Phone:    v.Phone,
+			RealName: v.RealName,
+		}
+		adminInfos = append(adminInfos, &ai)
+	}
+
+	return adminInfos
+}
+
 type serverList struct {
 	GroupId   int
 	GroupName string
@@ -294,7 +338,7 @@ type serverList struct {
 func serverLists(authStr string, adminId int) (sls []serverList) {
 	serverGroup := serverGroupLists(authStr, adminId)
 	Filters := make([]interface{}, 0)
-	Filters = append(Filters, "status", 0)
+	Filters = append(Filters, "status__in", []int{0, 1})
 
 	Result, _ := models.TaskServerGetList(1, 1000, Filters...)
 	for k, v := range serverGroup {

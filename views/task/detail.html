@@ -25,6 +25,7 @@
         <button lay-submit class="layui-btn  layui-btn-sm " lay-filter="run">测试执行</button>
         <button lay-submit class="layui-btn  layui-btn-sm " lay-filter="log">任务日志</button>
         <button lay-submit class="layui-btn  layui-btn-sm " lay-filter="copy">复制任务</button>
+        <button lay-submit class="layui-btn  layui-btn-sm layui-btn-primary" lay-filter="del">删除任务</button>
     </div>
 
     <div class="layui-layout layui-layout-admin" style="padding-left: 40px;margin-top: 20px;padding-right: 10px;">
@@ -63,8 +64,14 @@
                 <td></td>
             </tr>
             <tr>
-                <td>服务资源</td>
-                <td> {{.serverName}}</td>
+                <td>执行资源</td>
+                <td>  {{str2html .serverName}}</td>
+                <td></td>
+            </tr>
+
+            <tr>
+                <td>执行策略</td>
+                <td>  {{.ServerType}}</td>
                 <td></td>
             </tr>
             <tr>
@@ -89,6 +96,37 @@
                 <td>{{.task.Timeout}}</td>
                 <td></td>
             </tr>
+
+            <tr>
+                <td>出错通知</td>
+                <td>{{if eq .task.IsNotify 0}}否{{end}} {{if eq .task.IsNotify 1}}是{{end}}</td>
+                <td></td>
+            </tr>
+
+            {{if eq .task.IsNotify 1}}
+            <tr>
+                <td>通知类型</td>
+                <td>{{if eq .task.NotifyType 1}}短信{{end}} {{if eq .task.NotifyType 0}}邮件{{end}} {{if eq .task.NotifyType 2}}钉钉{{end}} {{if eq .task.NotifyType 3}}微信{{end}}</td>
+                <td></td>
+            </tr>
+
+            <tr>
+                <td>通知模板</td>
+                <td>{{.NotifyTplName}}</td>
+                <td></td>
+            </tr>
+
+            <tr>
+                <td>通知用户</td>
+                <td>
+                {{range $k, $v := .adminInfo}}
+                    {{$v.RealName}} &nbsp;<br>
+                {{end}}
+                </td>
+                <td></td>
+            </tr>
+
+            {{end}}
 
             <tr>
                 <td>创建时间</td>
@@ -119,6 +157,7 @@
         <input type="hidden" name="id" id="id" value="{{.task.Id}}">
     </div>
 
+
 </div>
 <script>
     layui.use(['form','element','layer','jquery'],function(){
@@ -132,26 +171,57 @@
             })
             return;
         }
+        var task_name = "{{.task.TaskName}}";
         $('.layui-btn-container button').on('click',function () {
             var event = $(this).attr('lay-filter');
+
             if (event==='edit'){
                 var status =" {{.task.Status}}";
                 if(status==1){
                     layer.msg("运行状态无法编辑任务，请先暂停任务");
                     return;
                 }
-                window.location.href="/task/edit?id="+id
+                window.parent.openTab("/task/edit?id="+id,task_name+' 编辑',"admin_task_edit-"+id,'fa-edit');
             }else if(event==='log'){
-                window.location.href="/tasklog/list?task_id="+id;
+                window.parent.openTab("/tasklog/list?task_id="+id,task_name+'日志',"admin_log-"+id,'');
             }else if(event==='copy'){
-                window.location.href="/task/copy?id="+id;
+                window.parent.openTab("/task/copy?id="+id,task_name+' 复制',"admin_task_copy-"+id,'fa-copy');
+            }else if(event==="del"){
+                var status =" {{.task.Status}}";
+                if(status==1){
+                    layer.msg("运行状态无法删除任务，请先暂停任务");
+                    return;
+                }
+
+                layer.confirm("确认要删除这条任务吗？", {icon: 3, title:'提示'}, function(index){
+                    layer.load();
+                    $.post('/task/ajaxdel', {id:id}, function (out) {
+
+                        if (out.status == 0) {
+                            layer.msg("操作成功",{icon: 1,shade:0.3,time:1000},function () {
+                                window.parent.deleteCurrentTab();
+                            })
+                        } else {
+                            layer.msg(out.message);
+                            return
+                        }
+                    }, "json");
+
+                    setTimeout(function(){
+                        layer.closeAll('loading');
+                    }, 2000);
+
+                    layer.close(index);
+                });
+
             }else if (event==='run'){
                 layer.confirm("测试执行任务，注意不要超时，请确认执行", {icon: 3, title:'提示'}, function(index){
                     layer.load();
                     $.post('/task/ajaxrun', {id:id}, function (out) {
                         if (out.status == 0) {
                             layer.msg("操作成功",{icon: 1,shade:0.3,time:1000},function () {
-                                window.location.href="/tasklog/list?task_id="+id
+                                window.parent.openTab("/tasklog/list?task_id="+id,task_name+' 日志',"admin_task_log-"+id,'');
+
                             })
                         } else {
                             layer.msg(out.message)
@@ -179,8 +249,6 @@
                 layer.msg("操作不存在")
             }
         })
-
-
 
 
         //但是，如果你的HTML是动态生成的，自动渲染就会失效
